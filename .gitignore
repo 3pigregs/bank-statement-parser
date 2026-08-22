@@ -1,0 +1,24 @@
+# Data — never commit real bank exports or outputs
+data/
+
+# Python environment
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Secrets / local config
+.env
+*.key
+secrets.*
+credentials*
+
+# OneDrive / Office / OS cruft
+~$*
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Editor
+.vscode/
+.idea/

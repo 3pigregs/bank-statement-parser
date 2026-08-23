@@ -41,36 +41,41 @@ def main():
                      "Step 1: Preprocess raw CSV files"):
         return
 
-    # Step 2: Concatenate preprocessed files
+    # Step 2: Check for coverage gaps between exports (warning only, doesn't stop the pipeline)
+    if not run_script(script_dir / 'check_data_gaps.py',
+                     "Step 2: Check date coverage"):
+        return
+
+    # Step 3: Concatenate preprocessed files
     if not run_script(script_dir / 'concatenate_files.py',
-                     "Step 2: Concatenate files"):
+                     "Step 3: Concatenate files"):
         return
 
-    # Step 3: Classify generic transaction types (no personal data needed)
+    # Step 4: Classify generic transaction types (no personal data needed)
     if not run_script(script_dir / 'classify_type.py',
-                     "Step 3: Classify transaction types"):
+                     "Step 4: Classify transaction types"):
         return
 
-    # Step 4: Create dashboard - works from Type alone, no personal data required
+    # Step 5: Create dashboard - works from Type alone, no personal data required
     if not run_script(script_dir / 'create_dashboard.py',
-                     "Step 4: Create finance dashboard"):
+                     "Step 5: Create finance dashboard"):
         return
 
-    # Step 5: Extract categories (reference only, optional personal enrichment)
+    # Step 6: Extract categories (reference only, optional personal enrichment)
     if not run_script(script_dir / 'extract_categories.py',
-                     "Step 5: Extract transaction categories (reference)"):
+                     "Step 6: Extract transaction categories (reference)"):
         return
 
-    # Step 6: Apply categories, only if a personal mapping exists
+    # Step 7: Apply categories, only if a personal mapping exists
     mapping_file = project_root / 'data' / '03_final' / 'category_mapping.csv'
 
     if mapping_file.exists():
         if not run_script(script_dir / 'apply_categories.py',
-                         "Step 6: Apply categories from mapping"):
+                         "Step 7: Apply categories from mapping"):
             return
     else:
         print(f"\n{'='*70}")
-        print("⚠️  Step 6: SKIPPED - No category mapping found (optional)")
+        print("⚠️  Step 7: SKIPPED - No category mapping found (optional)")
         print('='*70)
         print(f"\nTo add personal categorization on top of the dashboard:")
         print(f"1. Review: data/03_final/transaction_categories.csv")

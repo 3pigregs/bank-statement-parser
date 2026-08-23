@@ -3,10 +3,13 @@ Interactive finance dashboard built entirely from generic transaction data
 (Date, Montant, Balance, Type). No personal category mapping required -
 works on transactions_consolidated.csv alone.
 """
+import json
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from pathlib import Path
+
+DASHBOARD_DIV_ID = 'dashboard'
 
 
 def prepare_data(df):
@@ -35,7 +38,7 @@ def create_dashboard(df, expense_by_type, income_by_type):
             [{'type': 'scatter', 'colspan': 2}, None],
             [{'type': 'pie'}, {'type': 'pie'}],
         ],
-        vertical_spacing=0.15,
+        vertical_spacing=0.25,
     )
 
     # 1. Balance over time, with date range selector/slider
@@ -65,7 +68,8 @@ def create_dashboard(df, expense_by_type, income_by_type):
     fig.add_trace(
         go.Pie(
             labels=expense_by_type.index, values=expense_by_type.values,
-            hole=0.3, textinfo='label+percent', showlegend=False,
+            hole=0.3, textinfo='label+percent', textposition='inside',
+            insidetextorientation='radial', showlegend=False,
             hovertemplate='%{label}<br>%{value:.2f}€<br>%{percent}<extra></extra>',
         ),
         row=2, col=1,
@@ -75,7 +79,8 @@ def create_dashboard(df, expense_by_type, income_by_type):
     fig.add_trace(
         go.Pie(
             labels=income_by_type.index, values=income_by_type.values,
-            hole=0.3, textinfo='label+percent', showlegend=False,
+            hole=0.3, textinfo='label+percent', textposition='inside',
+            insidetextorientation='radial', showlegend=False,
             hovertemplate='%{label}<br>%{value:.2f}€<br>%{percent}<extra></extra>',
         ),
         row=2, col=2,
@@ -88,6 +93,69 @@ def create_dashboard(df, expense_by_type, income_by_type):
     )
 
     return fig
+
+
+def build_linking_script(df):
+    """
+    JS that recomputes the two pie charts whenever the Balance chart's
+    date range changes (button click, drag-zoom, or reset), since Plotly's
+    range selector only filters the axis it's attached to - pies have no
+    axis to filter by default.
+    """
+    records = df[['Date', 'Montant', 'Type']].copy()
+    records['Date'] = records['Date'].dt.strftime('%Y-%m-%d')
+    transactions_json = json.dumps(records.to_dict('records'))
+
+    return f"""
+    var TRANSACTIONS = {transactions_json};
+    var gd = document.getElementById('{DASHBOARD_DIV_ID}');
+
+    function aggregateByType(rows, wantExpenses) {{
+        var sums = {{}};
+        rows.forEach(function(t) {{
+            if (wantExpenses ? t.Montant < 0 : t.Montant > 0) {{
+                var amount = wantExpenses ? -t.Montant : t.Montant;
+                sums[t.Type] = (sums[t.Type] || 0) + amount;
+            }}
+        }});
+        var entries = Object.keys(sums).map(function(k) {{ return [k, sums[k]]; }});
+        entries.sort(function(a, b) {{ return b[1] - a[1]; }});
+        return {{
+            labels: entries.map(function(e) {{ return e[0]; }}),
+            values: entries.map(function(e) {{ return e[1]; }}),
+        }};
+    }}
+
+    function getSelectedRange(eventdata) {{
+        if (eventdata['xaxis.autorange']) return null;
+        if (eventdata['xaxis.range[0]'] !== undefined) {{
+            return [new Date(eventdata['xaxis.range[0]']), new Date(eventdata['xaxis.range[1]'])];
+        }}
+        if (eventdata['xaxis.range']) {{
+            return [new Date(eventdata['xaxis.range'][0]), new Date(eventdata['xaxis.range'][1])];
+        }}
+        return undefined;  // no range-relevant change in this event
+    }}
+
+    gd.on('plotly_relayout', function(eventdata) {{
+        var range = getSelectedRange(eventdata);
+        if (range === undefined) return;  // unrelated relayout event, ignore
+
+        var filtered = TRANSACTIONS;
+        if (range !== null) {{
+            filtered = TRANSACTIONS.filter(function(t) {{
+                var d = new Date(t.Date);
+                return d >= range[0] && d <= range[1];
+            }});
+        }}
+
+        var expenses = aggregateByType(filtered, true);
+        var income = aggregateByType(filtered, false);
+
+        Plotly.restyle(gd, {{labels: [expenses.labels], values: [expenses.values]}}, [1]);
+        Plotly.restyle(gd, {{labels: [income.labels], values: [income.values]}}, [2]);
+    }});
+    """
 
 
 def main():
@@ -108,7 +176,7 @@ def main():
     print("🎨 Creating dashboard...")
     fig = create_dashboard(df, expense_by_type, income_by_type)
 
-    fig.write_html(output_file)
+    fig.write_html(output_file, div_id=DASHBOARD_DIV_ID, post_script=build_linking_script(df))
     print(f"\n💾 Saved: {output_file}")
 
     total_revenue = df.loc[df['Montant'] > 0, 'Montant'].sum()

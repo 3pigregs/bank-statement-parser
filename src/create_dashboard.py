@@ -57,26 +57,25 @@ def create_dashboard(df, expense_by_type, income_by_type):
             dict(count=1, label="1y", step="year", stepmode="backward"),
             dict(step="all", label="All"),
         ]),
-        rangeslider=dict(visible=True),
         type="date",
         row=1, col=1,
     )
 
-    # 2. Expenses by generic Type (pie)
+    # 2. Expenses by generic Type (pie) - labels on the slices, no shared legend
     fig.add_trace(
         go.Pie(
             labels=expense_by_type.index, values=expense_by_type.values,
-            hole=0.3,
+            hole=0.3, textinfo='label+percent', showlegend=False,
             hovertemplate='%{label}<br>%{value:.2f}€<br>%{percent}<extra></extra>',
         ),
         row=2, col=1,
     )
 
-    # 3. Income by generic Type (pie)
+    # 3. Income by generic Type (pie) - labels on the slices, no shared legend
     fig.add_trace(
         go.Pie(
             labels=income_by_type.index, values=income_by_type.values,
-            hole=0.3,
+            hole=0.3, textinfo='label+percent', showlegend=False,
             hovertemplate='%{label}<br>%{value:.2f}€<br>%{percent}<extra></extra>',
         ),
         row=2, col=2,
@@ -85,7 +84,7 @@ def create_dashboard(df, expense_by_type, income_by_type):
     fig.update_layout(
         title_text='Finance Dashboard',
         height=900,
-        showlegend=True,
+        showlegend=False,
     )
 
     return fig

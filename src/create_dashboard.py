@@ -10,32 +10,30 @@ from pathlib import Path
 
 
 def prepare_data(df):
-    """Aggregate monthly revenue/expense and expenses by generic Type."""
-    df['Month'] = df['Date'].dt.to_period('M').astype(str)
-
-    monthly = df.groupby('Month')['Montant'].agg(
-        Revenue=lambda x: x[x > 0].sum(),
-        Expense=lambda x: -x[x < 0].sum(),
-    ).reset_index()
-    monthly['Net'] = monthly['Revenue'] - monthly['Expense']
-
+    """Aggregate expenses and income by generic Type."""
     expense_by_type = (
         df[df['Montant'] < 0]
         .groupby('Type')['Montant'].sum().abs()
         .sort_values(ascending=False)
     )
 
-    return monthly, expense_by_type
+    income_by_type = (
+        df[df['Montant'] > 0]
+        .groupby('Type')['Montant'].sum()
+        .sort_values(ascending=False)
+    )
+
+    return expense_by_type, income_by_type
 
 
-def create_dashboard(df, monthly, expense_by_type):
+def create_dashboard(df, expense_by_type, income_by_type):
     """Build the 3-panel dashboard figure."""
     fig = make_subplots(
         rows=2, cols=2,
-        subplot_titles=('Account Balance', 'Expenses by Type', 'Monthly Revenue vs Expenses'),
+        subplot_titles=('Account Balance', 'Expenses by Type', 'Income by Type'),
         specs=[
             [{'type': 'scatter', 'colspan': 2}, None],
-            [{'type': 'pie'}, {'type': 'bar'}],
+            [{'type': 'pie'}, {'type': 'pie'}],
         ],
         vertical_spacing=0.15,
     )
@@ -74,24 +72,15 @@ def create_dashboard(df, monthly, expense_by_type):
         row=2, col=1,
     )
 
-    # 3. Monthly revenue vs expenses
+    # 3. Income by generic Type (pie)
     fig.add_trace(
-        go.Bar(
-            x=monthly['Month'], y=monthly['Revenue'], name='Revenue',
-            marker_color='rgba(0,200,0,0.7)',
-            hovertemplate='Revenue: +%{y:.2f}€<extra></extra>',
+        go.Pie(
+            labels=income_by_type.index, values=income_by_type.values,
+            hole=0.3,
+            hovertemplate='%{label}<br>%{value:.2f}€<br>%{percent}<extra></extra>',
         ),
         row=2, col=2,
     )
-    fig.add_trace(
-        go.Bar(
-            x=monthly['Month'], y=-monthly['Expense'], name='Expenses',
-            marker_color='rgba(200,0,0,0.7)',
-            hovertemplate='Expenses: %{y:.2f}€<extra></extra>',
-        ),
-        row=2, col=2,
-    )
-    fig.update_xaxes(tickangle=-45, row=2, col=2)
 
     fig.update_layout(
         title_text='Finance Dashboard',
@@ -115,21 +104,27 @@ def main():
     print(f"📅 Date range: {df['Date'].min().date()} to {df['Date'].max().date()}")
 
     print("\n🔄 Preparing data...")
-    monthly, expense_by_type = prepare_data(df)
+    expense_by_type, income_by_type = prepare_data(df)
 
     print("🎨 Creating dashboard...")
-    fig = create_dashboard(df, monthly, expense_by_type)
+    fig = create_dashboard(df, expense_by_type, income_by_type)
 
     fig.write_html(output_file)
     print(f"\n💾 Saved: {output_file}")
 
+    total_revenue = df.loc[df['Montant'] > 0, 'Montant'].sum()
+    total_expense = -df.loc[df['Montant'] < 0, 'Montant'].sum()
     print(f"\n📊 Summary:")
-    print(f"   Total Revenue: +{monthly['Revenue'].sum():.2f}€")
-    print(f"   Total Expenses: -{monthly['Expense'].sum():.2f}€")
-    print(f"   Net: {monthly['Net'].sum():.2f}€")
+    print(f"   Total Revenue: +{total_revenue:.2f}€")
+    print(f"   Total Expenses: -{total_expense:.2f}€")
+    print(f"   Net: {total_revenue - total_expense:.2f}€")
 
-    print(f"\n💳 Top Expense Types:")
-    for t, amount in expense_by_type.head(5).items():
+    print(f"\n💳 Expense Types:")
+    for t, amount in expense_by_type.items():
+        print(f"   {t}: {amount:.2f}€")
+
+    print(f"\n💰 Income Types:")
+    for t, amount in income_by_type.items():
         print(f"   {t}: {amount:.2f}€")
 
     print("\n🌐 Open finance_dashboard.html in your browser!")

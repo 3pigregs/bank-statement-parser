@@ -91,7 +91,11 @@ def main():
     print(f"   ⚠️  Uncategorized: {uncategorized}")
     
     # Save
-    output = df[['Date', 'Libellé', 'Montant', 'Balance', 'Normalized', 'Category']]
+    output_columns = ['Date', 'Libellé', 'Montant', 'Balance']
+    if 'Type' in df.columns:
+        output_columns.append('Type')
+    output_columns += ['Normalized', 'Category']
+    output = df[output_columns]
     output.to_csv(output_file, index=False, encoding='utf-8-sig', sep=';', decimal=',')
     
     print(f"\n💾 Saved to: {output_file}")

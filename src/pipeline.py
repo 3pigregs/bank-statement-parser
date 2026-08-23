@@ -45,34 +45,39 @@ def main():
                      "Step 2: Concatenate files"):
         return
     
-    # Step 3: Extract categories (reference only)
+    # Step 3: Classify generic transaction types (no personal data needed)
+    if not run_script(script_dir / 'classify_type.py',
+                     "Step 3: Classify transaction types"):
+        return
+
+    # Step 4: Extract categories (reference only)
     print(f"\n{'='*70}")
-    print("▶️  Step 3: Extract transaction categories (reference)")
+    print("▶️  Step 4: Extract transaction categories (reference)")
     print('='*70)
     if not run_script(script_dir / 'extract_categories.py',
                      "   Generating transaction_categories.csv"):
         return
-    
-    # Step 4: Apply categories
+
+    # Step 5: Apply categories
     mapping_file = project_root / 'data' / '03_final' / 'category_mapping.csv'
     
     if mapping_file.exists():
         if not run_script(script_dir / 'apply_categories.py',
-                         "Step 4: Apply categories from mapping"):
+                         "Step 5: Apply categories from mapping"):
             return
     else:
         print(f"\n{'='*70}")
-        print("⚠️  Step 4: SKIPPED - No category mapping found")
+        print("⚠️  Step 5: SKIPPED - No category mapping found")
         print('='*70)
         print(f"\nTo enable categorization:")
         print(f"1. Review: data/03_final/transaction_categories.csv")
         print(f"2. Create: data/03_final/category_mapping.csv")
         print(f"   Format: Normalized,Category")
         print(f"3. Re-run pipeline")
-    
-    # Step 5: Create dashboard
+
+    # Step 6: Create dashboard
     print(f"\n{'='*70}")
-    print("▶️  Step 5: Create finance dashboard")
+    print("▶️  Step 6: Create finance dashboard")
     print('='*70)
     
     if not run_script(script_dir / 'create_dashboard.py',
